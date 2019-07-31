@@ -17,6 +17,7 @@
 package org.springframework.boot.configurationprocessor;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -49,7 +50,25 @@ class MetadataGenerationEnvironment {
 
 	private static final String NULLABLE_ANNOTATION = "org.springframework.lang.Nullable";
 
-	private final Set<String> typeExcludes;
+	private static final Set<String> TYPE_EXCLUDES;
+	static {
+		Set<String> excludes = new HashSet<>();
+		excludes.add("com.zaxxer.hikari.IConnectionCustomizer");
+		excludes.add("groovy.lang.MetaClass");
+		excludes.add("groovy.text.markup.MarkupTemplateEngine");
+		excludes.add("java.io.Writer");
+		excludes.add("java.io.PrintWriter");
+		excludes.add("java.lang.ClassLoader");
+		excludes.add("java.util.concurrent.ThreadFactory");
+		excludes.add("javax.jms.XAConnectionFactory");
+		excludes.add("javax.sql.DataSource");
+		excludes.add("javax.sql.XADataSource");
+		excludes.add("org.apache.tomcat.jdbc.pool.PoolConfiguration");
+		excludes.add("org.apache.tomcat.jdbc.pool.Validator");
+		excludes.add("org.flywaydb.core.api.callback.FlywayCallback");
+		excludes.add("org.flywaydb.core.api.resolver.MigrationResolver");
+		TYPE_EXCLUDES = Collections.unmodifiableSet(excludes);
+	}
 
 	private final TypeUtils typeUtils;
 
@@ -73,13 +92,9 @@ class MetadataGenerationEnvironment {
 
 	private final String readOperationAnnotation;
 
-	MetadataGenerationEnvironment(ProcessingEnvironment environment,
-			String configurationPropertiesAnnotation,
-			String nestedConfigurationPropertyAnnotation,
-			String deprecatedConfigurationPropertyAnnotation,
-			String defaultValueAnnotation, String endpointAnnotation,
-			String readOperationAnnotation) {
-		this.typeExcludes = determineTypeExcludes();
+	MetadataGenerationEnvironment(ProcessingEnvironment environment, String configurationPropertiesAnnotation,
+			String nestedConfigurationPropertyAnnotation, String deprecatedConfigurationPropertyAnnotation,
+			String defaultValueAnnotation, String endpointAnnotation, String readOperationAnnotation) {
 		this.typeUtils = new TypeUtils(environment);
 		this.elements = environment.getElementUtils();
 		this.messager = environment.getMessager();
@@ -92,24 +107,6 @@ class MetadataGenerationEnvironment {
 		this.readOperationAnnotation = readOperationAnnotation;
 	}
 
-	private static Set<String> determineTypeExcludes() {
-		Set<String> excludes = new HashSet<>();
-		excludes.add("com.zaxxer.hikari.IConnectionCustomizer");
-		excludes.add("groovy.text.markup.MarkupTemplateEngine");
-		excludes.add("java.io.Writer");
-		excludes.add("java.io.PrintWriter");
-		excludes.add("java.lang.ClassLoader");
-		excludes.add("java.util.concurrent.ThreadFactory");
-		excludes.add("javax.jms.XAConnectionFactory");
-		excludes.add("javax.sql.DataSource");
-		excludes.add("javax.sql.XADataSource");
-		excludes.add("org.apache.tomcat.jdbc.pool.PoolConfiguration");
-		excludes.add("org.apache.tomcat.jdbc.pool.Validator");
-		excludes.add("org.flywaydb.core.api.callback.FlywayCallback");
-		excludes.add("org.flywaydb.core.api.resolver.MigrationResolver");
-		return excludes;
-	}
-
 	private static FieldValuesParser resolveFieldValuesParser(ProcessingEnvironment env) {
 		try {
 			return new JavaCompilerFieldValuesParser(env);
@@ -119,11 +116,11 @@ class MetadataGenerationEnvironment {
 		}
 	}
 
-	public TypeUtils getTypeUtils() {
+	TypeUtils getTypeUtils() {
 		return this.typeUtils;
 	}
 
-	public Messager getMessager() {
+	Messager getMessager() {
 		return this.messager;
 	}
 
@@ -134,12 +131,11 @@ class MetadataGenerationEnvironment {
 	 * @return the default value or {@code null} if the field does not exist or no default
 	 * value has been detected
 	 */
-	public Object getFieldDefaultValue(TypeElement type, String name) {
-		return this.defaultValues.computeIfAbsent(type, this::resolveFieldValues)
-				.get(name);
+	Object getFieldDefaultValue(TypeElement type, String name) {
+		return this.defaultValues.computeIfAbsent(type, this::resolveFieldValues).get(name);
 	}
 
-	public boolean isExcluded(TypeMirror type) {
+	boolean isExcluded(TypeMirror type) {
 		if (type == null) {
 			return false;
 		}
@@ -147,10 +143,10 @@ class MetadataGenerationEnvironment {
 		if (typeName.endsWith("[]")) {
 			typeName = typeName.substring(0, typeName.length() - 2);
 		}
-		return this.typeExcludes.contains(typeName);
+		return TYPE_EXCLUDES.contains(typeName);
 	}
 
-	public boolean isDeprecated(Element element) {
+	boolean isDeprecated(Element element) {
 		if (isElementDeprecated(element)) {
 			return true;
 		}
@@ -160,9 +156,8 @@ class MetadataGenerationEnvironment {
 		return false;
 	}
 
-	public ItemDeprecation resolveItemDeprecation(Element element) {
-		AnnotationMirror annotation = getAnnotation(element,
-				this.deprecatedConfigurationPropertyAnnotation);
+	ItemDeprecation resolveItemDeprecation(Element element) {
+		AnnotationMirror annotation = getAnnotation(element, this.deprecatedConfigurationPropertyAnnotation);
 		String reason = null;
 		String replacement = null;
 		if (annotation != null) {
@@ -175,11 +170,11 @@ class MetadataGenerationEnvironment {
 		return new ItemDeprecation(reason, replacement);
 	}
 
-	public boolean hasAnnotation(Element element, String type) {
+	boolean hasAnnotation(Element element, String type) {
 		return getAnnotation(element, type) != null;
 	}
 
-	public AnnotationMirror getAnnotation(Element element, String type) {
+	AnnotationMirror getAnnotation(Element element, String type) {
 		if (element != null) {
 			for (AnnotationMirror annotation : element.getAnnotationMirrors()) {
 				if (type.equals(annotation.getAnnotationType().toString())) {
@@ -190,10 +185,10 @@ class MetadataGenerationEnvironment {
 		return null;
 	}
 
-	public Map<String, Object> getAnnotationElementValues(AnnotationMirror annotation) {
+	Map<String, Object> getAnnotationElementValues(AnnotationMirror annotation) {
 		Map<String, Object> values = new LinkedHashMap<>();
-		annotation.getElementValues().forEach((name, value) -> values
-				.put(name.getSimpleName().toString(), getAnnotationValue(value)));
+		annotation.getElementValues()
+				.forEach((name, value) -> values.put(name.getSimpleName().toString(), getAnnotationValue(value)));
 		return values;
 	}
 
@@ -201,38 +196,37 @@ class MetadataGenerationEnvironment {
 		Object value = annotationValue.getValue();
 		if (value instanceof List) {
 			List<Object> values = new ArrayList<>();
-			((List<?>) value)
-					.forEach((v) -> values.add(((AnnotationValue) v).getValue()));
+			((List<?>) value).forEach((v) -> values.add(((AnnotationValue) v).getValue()));
 			return values;
 		}
 		return value;
 	}
 
-	public TypeElement getConfigurationPropertiesAnnotationElement() {
+	TypeElement getConfigurationPropertiesAnnotationElement() {
 		return this.elements.getTypeElement(this.configurationPropertiesAnnotation);
 	}
 
-	public AnnotationMirror getConfigurationPropertiesAnnotation(Element element) {
+	AnnotationMirror getConfigurationPropertiesAnnotation(Element element) {
 		return getAnnotation(element, this.configurationPropertiesAnnotation);
 	}
 
-	public AnnotationMirror getNestedConfigurationPropertyAnnotation(Element element) {
+	AnnotationMirror getNestedConfigurationPropertyAnnotation(Element element) {
 		return getAnnotation(element, this.nestedConfigurationPropertyAnnotation);
 	}
 
-	public AnnotationMirror getDefaultValueAnnotation(Element element) {
+	AnnotationMirror getDefaultValueAnnotation(Element element) {
 		return getAnnotation(element, this.defaultValueAnnotation);
 	}
 
-	public TypeElement getEndpointAnnotationElement() {
+	TypeElement getEndpointAnnotationElement() {
 		return this.elements.getTypeElement(this.endpointAnnotation);
 	}
 
-	public AnnotationMirror getReadOperationAnnotation(Element element) {
+	AnnotationMirror getReadOperationAnnotation(Element element) {
 		return getAnnotation(element, this.readOperationAnnotation);
 	}
 
-	public boolean hasNullableAnnotation(Element element) {
+	boolean hasNullableAnnotation(Element element) {
 		return getAnnotation(element, NULLABLE_ANNOTATION) != null;
 	}
 
@@ -259,8 +253,7 @@ class MetadataGenerationEnvironment {
 			// continue
 		}
 		Element superType = this.typeUtils.asElement(element.getSuperclass());
-		if (superType instanceof TypeElement
-				&& superType.asType().getKind() != TypeKind.NONE) {
+		if (superType instanceof TypeElement && superType.asType().getKind() != TypeKind.NONE) {
 			resolveFieldValuesFor(values, (TypeElement) superType);
 		}
 	}

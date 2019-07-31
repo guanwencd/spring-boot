@@ -70,11 +70,6 @@
 			<optional>true</optional>
 		</dependency>
 		<dependency>
-			<groupId>com.timgroup</groupId>
-			<artifactId>java-statsd-client</artifactId>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
 			<groupId>com.zaxxer</groupId>
 			<artifactId>HikariCP</artifactId>
 			<optional>true</optional>
@@ -349,7 +344,7 @@
 		</dependency>
 		<dependency>
 			<groupId>org.infinispan</groupId>
-			<artifactId>infinispan-spring4-embedded</artifactId>
+			<artifactId>infinispan-spring5-embedded</artifactId>
 			<optional>true</optional>
 		</dependency>
 		<dependency>
@@ -497,6 +492,12 @@
 			<groupId>com.squareup.okhttp3</groupId>
 			<artifactId>mockwebserver</artifactId>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.hamcrest</groupId>
+					<artifactId>hamcrest-core</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>com.jayway.jsonpath</groupId>
@@ -551,7 +552,7 @@
 		</dependency>
 		<dependency>
 			<groupId>org.glassfish.jersey.ext</groupId>
-			<artifactId>jersey-spring4</artifactId>
+			<artifactId>jersey-spring5</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -724,7 +725,16 @@
 									<target>
 										<zip
 											destfile="${project.build.directory}/${project.artifactId}-${project.version}-docs.zip">
-											<fileset dir="${project.build.directory}/generated-docs" />
+											<zipfileset
+													dir="${project.build.directory}/generated-docs/reference/html"
+													prefix="html" />
+											<mappedresources>
+												<fileset
+														dir="${project.build.directory}/generated-docs/reference/pdf"
+														includes="index.pdf" />
+												<globmapper from="index.pdf"
+															to="pdf/spring-boot-actuator-web-api.pdf" />
+											</mappedresources>
 										</zip>
 									</target>
 								</configuration>
@@ -754,7 +764,14 @@
 										<icons>font</icons>
 										<stylesdir>css/</stylesdir>
 										<stylesheet>spring.css</stylesheet>
+										<attribute-missing>warn</attribute-missing>
 									</attributes>
+									<logHandler>
+										<outputToConsole>true</outputToConsole>
+										<failIf>
+											<severity>DEBUG</severity>
+										</failIf>
+									</logHandler>
 								</configuration>
 							</execution>
 							<execution>
@@ -771,6 +788,7 @@
 						</executions>
 						<configuration>
 							<sourceDirectory>${refdocs.build.directory}</sourceDirectory>
+							<sourceDocumentName>index.adoc</sourceDocumentName>
 							<attributes>
 								<version-type>${version-type}</version-type>
 								<version>${project.version}</version>
